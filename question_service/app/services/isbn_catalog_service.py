@@ -118,7 +118,15 @@ class IsbnCatalogService:
             self.OPEN_LIBRARY_URL.format(isbn=isbn),
             timeout=settings.request_timeout_seconds,
         )
-        if response.status_code != 200:
+
+    def _lookup_open_library(self, isbn: str) -> dict | None:
+        try:
+            response = requests.get(
+                self.OPEN_LIBRARY_URL.format(isbn=isbn),
+                timeout=settings.request_timeout_seconds,
+            )
+            response.raise_for_status()
+        except RequestException:
             return None
 
         payload = response.json()

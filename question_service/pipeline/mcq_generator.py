@@ -15,12 +15,19 @@ class QuestionDraft:
 
 
 class McqGenerator:
+    """Create question drafts from filtered facts using deterministic templates."""
+
+    PERSON_TYPES = {"PERSON"}
+
     def generate(self, fact: Fact) -> list[QuestionDraft]:
         drafts: list[QuestionDraft] = []
-        if fact.subject == fact.entity:
+        answer_is_person = fact.entity_type in self.PERSON_TYPES
+        wh_word = "Who" if answer_is_person else "What"
+
+        if self._is_same_entity(fact.subject, fact.entity):
             drafts.append(
                 QuestionDraft(
-                    question=f"Who {fact.verb} {fact.object}?",
+                    question=f"{wh_word} {fact.verb} {fact.object}?",
                     answer=fact.subject,
                     answer_type=fact.entity_type,
                     fact_id=fact.fact_id,
@@ -30,7 +37,7 @@ class McqGenerator:
 
         drafts.append(
             QuestionDraft(
-                question=f"Who did {fact.subject} {fact.lemma}?",
+                question=f"{wh_word} did {fact.subject} {fact.lemma}?",
                 answer=fact.object,
                 answer_type=fact.entity_type,
                 fact_id=fact.fact_id,
@@ -43,10 +50,21 @@ class McqGenerator:
                 QuestionDraft(
                     question=f"During the event, who {fact.verb} {fact.object}?",
                     answer=fact.subject,
-                    answer_type=fact.entity_type,
+                    answer_type="PERSON",
                     fact_id=fact.fact_id,
                     chapter=fact.chapter,
                 )
             )
 
-        return [d for d in drafts if len(d.question.split()) > 3]
+        return [d for d in drafts if self._is_valid_question(d.question)]
+
+    @staticmethod
+    def _is_same_entity(left: str, right: str) -> bool:
+        return left.strip().lower() == right.strip().lower()
+
+    @staticmethod
+    def _is_valid_question(text: str) -> bool:
+        cleaned = " ".join(text.split())
+        if len(cleaned.split()) < 4:
+            return False
+        return cleaned.endswith("?")
