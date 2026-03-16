@@ -1,0 +1,116 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  color: #1f2937;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem 1rem 3rem;
+}
+
+.hero h1 {
+  margin-bottom: 0.25rem;
+  font-size: 2.1rem;
+}
+
+.hero p {
+  margin-top: 0;
+  color: #4b5563;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  padding: 1rem;
+}
+
+.controls {
+  margin-top: 1rem;
+}
+
+.controls label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.input-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1rem;
+}
+
+button {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.status,
+.error {
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.questions-list {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.question-card {
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  padding: 1rem;
+}
+
+.question-card h3 {
+  margin: 0 0 0.4rem;
+}
+
+.question-text {
+  margin-top: 0;
+}
+
+.question-card ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.question-card li {
+  margin-bottom: 0.35rem;
+}
+
+.download-btn {
+  justify-self: start;
+  background: #0f766e;
+}
