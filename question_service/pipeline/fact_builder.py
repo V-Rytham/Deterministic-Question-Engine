@@ -11,7 +11,6 @@ from question_service.pipeline.ner_extractor import EntityRecord
 class Fact:
     fact_id: str
     book_id: str
-    isbn: str | None
     chapter: int
     entity: str
     entity_type: str
@@ -33,7 +32,6 @@ class FactBuilder:
     def build(
         self,
         book_id: str,
-        isbn: str | None,
         chapter: int,
         sentence: str,
         position: int,
@@ -50,7 +48,6 @@ class FactBuilder:
                     Fact(
                         fact_id=str(uuid.uuid4()),
                         book_id=book_id,
-                        isbn=isbn,
                         chapter=chapter,
                         entity=ent.entity,
                         entity_type=ent.entity_type,

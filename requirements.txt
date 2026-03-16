@@ -3,3 +3,4 @@ uvicorn==0.30.6
 pymongo==4.8.0
 spacy==3.7.6
 requests==2.32.3
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0.tar.gz

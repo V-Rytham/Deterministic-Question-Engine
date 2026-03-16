@@ -1,18 +1,25 @@
 # Deterministic Question Engine
 
-Standalone Python service that generates MCQs from Gutenberg books using an offline NLP pipeline and serves random precomputed questions through an ISBN-driven API.
+A full-stack demo that generates MCQs from Gutenberg books and serves them by ISBN through a FastAPI backend + React frontend.
 
 ## Features
 
-- Offline pipeline: fetch book → chapters → sentence split → NER → dependency parsing → fact extraction/filtering → MCQ + distractors.
-- Stores outputs in MongoDB Atlas collections:
+- Offline NLP pipeline: fetch book → chapters → sentence split → NER → dependency parsing → fact extraction/filtering → MCQ + distractors.
+- MongoDB persistence for:
   - `books`
   - `book_facts`
   - `entity_bank`
   - `book_questions`
-- Runtime API endpoint: `GET /questions/{isbn}`
-  - returns 5 random questions instantly when already generated
-  - returns processing status and triggers background generation when missing
+  - `isbn_gutenberg_map` (cached ISBN → Gutenberg mapping + confidence)
+- ISBN resolution layer:
+  - Fetches title/author from Open Library
+  - Searches Gutendex by title
+  - Chooses closest match with title/author similarity
+  - Caches results to avoid repeated network calls
+- API endpoints:
+  - `GET /questions/{isbn}` (returns processing/completed/unavailable)
+  - `GET /questions/all/{isbn}` (downloads up to 100 questions)
+- React demo frontend for portfolio presentation.
 
 ## Project Layout
 
@@ -26,11 +33,17 @@ question_service/
   pipeline/
   scripts/
   config/
+frontend/
+  src/
+    api/
+    components/
+    pages/
+    App.jsx
 main.py
 requirements.txt
 ```
 
-## Setup
+## Backend Setup
 
 ```bash
 python -m venv .venv
@@ -45,23 +58,11 @@ Set environment variables:
 export MONGODB_URI="<your_mongodb_atlas_uri>"
 export MONGODB_DB="question_service"
 export SPACY_MODEL="en_core_web_sm"
+# Optional override map: {"9780141439600": {"gutenberg_id": "1342", "title": "Pride and Prejudice", "author": "Jane Austen"}}
+export ISBN_SOURCE_MAP='{}'
 ```
 
-Optional ISBN source mapping (JSON object), used for new ISBN onboarding:
-
-```bash
-export ISBN_SOURCE_MAP='{"9780141439600":{"book_url":"https://www.gutenberg.org/cache/epub/1342/pg1342.txt","title":"Pride and Prejudice","author":"Jane Austen"}}'
-```
-
-## Run Offline Pipeline
-
-```bash
-python -m question_service.scripts.run_pipeline --book_url https://www.gutenberg.org/cache/epub/1342/pg1342.txt --isbn 9780141439600 --title "Pride and Prejudice" --author "Jane Austen"
-```
-
-This downloads the book, processes chapters, and stores facts/questions in MongoDB.
-
-## Run API
+## Run Backend
 
 ```bash
 uvicorn main:app --host 0.0.0.0 --port 8000
@@ -71,31 +72,48 @@ Endpoints:
 
 - `GET /health`
 - `GET /questions/{isbn}`
+- `GET /questions/all/{isbn}`
 
-## Validate Generated Questions
+Unavailable response:
 
-By ISBN endpoint:
-
-```bash
-python scripts/test_isbn_request.py --isbn 9780141439600
+```json
+{
+  "status": "unavailable",
+  "message": "This book is not available in the public domain."
+}
 ```
 
-Legacy direct DB check by `book_id`:
+## Frontend Demo Setup
 
 ```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Optional frontend env:
+
+```bash
+# frontend/.env
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+Open the app at `http://localhost:5173`.
+
+## Example ISBNs Known to Work with Gutenberg
+
+- `9780141439518` (Pride and Prejudice)
+- `9780141439600` (Pride and Prejudice edition)
+
+## Run Offline Pipeline Manually (Optional)
+
+```bash
+python -m question_service.scripts.run_pipeline --book_url https://www.gutenberg.org/cache/epub/1342/pg1342.txt --title "Pride and Prejudice" --author "Jane Austen"
+```
+
+## Validation Scripts
+
+```bash
+python -m question_service.scripts.test_isbn_request --isbn 9780141439600
 python -m question_service.scripts.test_questions --book_id 1342
 ```
-
-## Render Deployment
-
-- Python runtime is pinned via `runtime.txt` to `python-3.11.9` (compatible with spaCy).
-- Build command: `pip install -r requirements.txt && python -m spacy download en_core_web_sm`
-- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-- Add env vars in Render dashboard (`MONGODB_URI`, `MONGODB_DB`, `SPACY_MODEL`, optional `ISBN_SOURCE_MAP`).
-
-If your Render service was created before this change, also set Python version in the dashboard:
-
-1. Open **Render Dashboard → your service → Settings**.
-2. Find **Environment / Build & Deploy** Python version setting.
-3. Set Python to **3.11.9** (or another spaCy-supported 3.11/3.10 version).
-4. Save and trigger a **Manual Deploy**.

@@ -11,7 +11,6 @@ from question_service.pipeline.mcq_generator import QuestionDraft
 class GeneratedQuestion:
     question_id: str
     book_id: str
-    isbn: str | None
     chapter: int
     fact_id: str
     question: str
@@ -22,7 +21,6 @@ class GeneratedQuestion:
         return {
             "question_id": self.question_id,
             "book_id": self.book_id,
-            "isbn": self.isbn,
             "chapter": self.chapter,
             "fact_id": self.fact_id,
             "question": self.question,
@@ -35,7 +33,6 @@ class DistractorGenerator:
     def build_question(
         self,
         book_id: str,
-        isbn: str | None,
         draft: QuestionDraft,
         entity_bank: list[dict],
         subject: str,
@@ -58,7 +55,6 @@ class DistractorGenerator:
         return GeneratedQuestion(
             question_id=str(uuid.uuid4()),
             book_id=book_id,
-            isbn=isbn,
             chapter=draft.chapter,
             fact_id=draft.fact_id,
             question=draft.question,
