@@ -83,20 +83,6 @@ Unavailable response:
 }
 ```
 
-
-## Quality and Audit Highlights
-
-- ISBN inputs are normalized/validated (10 or 13 digits, hyphens allowed).
-- Pipeline stage hardening:
-  - improved chapter splitting for `CHAPTER 1`, `CHAPTER I`, and `Chapter One` markers
-  - safer SVO extraction + duplicate core elimination
-  - fact construction now links entities only when aligned to subject/object mentions
-  - distractor generation deduplicates and filters invalid options
-- Persistence hardening:
-  - entity bank is rebuilt per run (prevents frequency inflation on reprocessing)
-  - duplicate question text is deduplicated before insert
-- Added unit tests under `tests/` for chapter splitting, fact building/filtering, MCQ generation, distractors, and ISBN normalization.
-
 ## Frontend Demo Setup
 
 ```bash

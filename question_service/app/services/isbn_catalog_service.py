@@ -5,7 +5,6 @@ from difflib import SequenceMatcher
 from urllib.parse import quote_plus
 
 import requests
-from requests import RequestException
 from pymongo.database import Database
 
 from question_service.config.settings import settings
@@ -115,6 +114,12 @@ class IsbnCatalogService:
         )
 
     def _lookup_open_library(self, isbn: str) -> dict | None:
+        response = requests.get(
+            self.OPEN_LIBRARY_URL.format(isbn=isbn),
+            timeout=settings.request_timeout_seconds,
+        )
+
+    def _lookup_open_library(self, isbn: str) -> dict | None:
         try:
             response = requests.get(
                 self.OPEN_LIBRARY_URL.format(isbn=isbn),
@@ -143,13 +148,11 @@ class IsbnCatalogService:
         return {"title": title, "author": author}
 
     def _search_gutenberg(self, title: str, author: str | None) -> dict | None:
-        try:
-            response = requests.get(
-                self.GUTENDEX_URL.format(query=quote_plus(title)),
-                timeout=settings.request_timeout_seconds,
-            )
-            response.raise_for_status()
-        except RequestException:
+        response = requests.get(
+            self.GUTENDEX_URL.format(query=quote_plus(title)),
+            timeout=settings.request_timeout_seconds,
+        )
+        if response.status_code != 200:
             return None
 
         payload = response.json()
@@ -176,11 +179,8 @@ class IsbnCatalogService:
             score = (0.75 * title_score) + (0.25 * author_score)
             if score > best_score:
                 best_score = score
-                candidate_id = candidate.get("id")
-                if candidate_id is None:
-                    continue
                 best_match = {
-                    "gutenberg_id": str(candidate_id),
+                    "gutenberg_id": str(candidate.get("id")),
                     "title": cand_title,
                     "author": cand_author,
                     "confidence_score": score,
