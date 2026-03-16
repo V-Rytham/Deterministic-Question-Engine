@@ -6,7 +6,6 @@ from pydantic import BaseModel
 class QuestionItem(BaseModel):
     question_id: str
     book_id: str
-    isbn: str | None = None
     chapter: int
     question: str
     options: list[str]
@@ -14,7 +13,5 @@ class QuestionItem(BaseModel):
 
 
 class QuestionResponse(BaseModel):
-    status: str
-    isbn: str | None = None
-    message: str | None = None
-    questions: list[QuestionItem] | None = None
+    book_id: str
+    questions: list[QuestionItem]

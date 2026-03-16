@@ -29,13 +29,7 @@ class PipelineRunner:
         self.mcq_generator = McqGenerator()
         self.distractor_generator = DistractorGenerator()
 
-    def run(
-        self,
-        book_url: str,
-        title: str | None = None,
-        author: str | None = None,
-        isbn: str | None = None,
-    ) -> dict:
+    def run(self, book_url: str, title: str | None = None, author: str | None = None) -> dict:
         book_id, text = self.fetcher.fetch(book_url)
         chapters = self.chapter_splitter.split(text)
 
@@ -50,7 +44,6 @@ class PipelineRunner:
                 all_facts.extend(
                     self.fact_builder.build(
                         book_id=book_id,
-                        isbn=isbn,
                         chapter=chapter_num,
                         sentence=sentence,
                         position=position,
@@ -62,66 +55,50 @@ class PipelineRunner:
         entity_freq: Counter = self.ner.frequency_map(all_entities)
         filtered = self.fact_filter.filter(all_facts, dict(entity_freq))
 
-        self._persist_book(book_id, isbn, title, author, book_url)
-        self._persist_entities(book_id, isbn, entity_freq)
-        self._persist_facts(book_id, isbn, filtered)
-        question_count = self._persist_questions(book_id, isbn, filtered)
+        self._persist_book(book_id, title, author, book_url)
+        self._persist_entities(book_id, entity_freq)
+        self._persist_facts(book_id, filtered)
+        question_count = self._persist_questions(book_id, filtered)
 
         return {
             "book_id": book_id,
-            "isbn": isbn,
             "chapters": len(chapters),
             "facts_total": len(all_facts),
             "facts_filtered": len(filtered),
             "questions": question_count,
         }
 
-    def _persist_book(
-        self,
-        book_id: str,
-        isbn: str | None,
-        title: str | None,
-        author: str | None,
-        source_url: str,
-    ) -> None:
-        lookup = {"isbn": isbn} if isbn else {"book_id": book_id}
+    def _persist_book(self, book_id: str, title: str | None, author: str | None, source_url: str) -> None:
         self.db.books.update_one(
-            lookup,
+            {"book_id": book_id},
             {
                 "$set": {
                     "book_id": book_id,
-                    "isbn": isbn,
                     "title": title or f"Gutenberg {book_id}",
                     "author": author or "Unknown",
                     "source_url": source_url,
-                    "pipeline_status": "completed",
                 }
             },
             upsert=True,
         )
 
-    def _persist_entities(self, book_id: str, isbn: str | None, entity_freq: Counter) -> None:
+    def _persist_entities(self, book_id: str, entity_freq: Counter) -> None:
         for (entity, entity_type), frequency in entity_freq.items():
             self.db.entity_bank.update_one(
                 {"book_id": book_id, "entity": entity},
                 {
-                    "$set": {
-                        "book_id": book_id,
-                        "isbn": isbn,
-                        "entity": entity,
-                        "entity_type": entity_type,
-                    },
+                    "$set": {"book_id": book_id, "entity": entity, "entity_type": entity_type},
                     "$inc": {"frequency": int(frequency)},
                 },
                 upsert=True,
             )
 
-    def _persist_facts(self, book_id: str, isbn: str | None, facts: list[Fact]) -> None:
+    def _persist_facts(self, book_id: str, facts: list[Fact]) -> None:
         self.db.book_facts.delete_many({"book_id": book_id})
         if facts:
             self.db.book_facts.insert_many([fact.to_dict() for fact in facts])
 
-    def _persist_questions(self, book_id: str, isbn: str | None, facts: list[Fact]) -> int:
+    def _persist_questions(self, book_id: str, facts: list[Fact]) -> int:
         self.db.book_questions.delete_many({"book_id": book_id})
         entities = list(self.db.entity_bank.find({"book_id": book_id}, {"_id": 0}))
         generated = []
@@ -130,7 +107,6 @@ class PipelineRunner:
             for draft in drafts:
                 question = self.distractor_generator.build_question(
                     book_id,
-                    isbn,
                     draft,
                     entities,
                     subject=fact.subject,
