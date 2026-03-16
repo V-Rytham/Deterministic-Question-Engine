@@ -19,7 +19,7 @@ def get_db() -> Database:
 
 def ensure_indexes() -> None:
     db = get_db()
-    db.books.create_index("book_id", unique=True)
+    db.books.create_index("book_id")
     db.books.create_index("isbn", unique=True, sparse=True)
     db.book_facts.create_index([("book_id", 1), ("chapter", 1), ("position", 1)])
     db.entity_bank.create_index([("book_id", 1), ("entity", 1)], unique=True)
