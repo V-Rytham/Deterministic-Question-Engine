@@ -30,6 +30,8 @@ class GeneratedQuestion:
 
 
 class DistractorGenerator:
+    """Construct 4-option MCQs with type-compatible distractors."""
+
     def build_question(
         self,
         book_id: str,
@@ -38,13 +40,24 @@ class DistractorGenerator:
         subject: str,
         obj: str,
     ) -> GeneratedQuestion | None:
-        pool = [
-            item["entity"]
-            for item in entity_bank
-            if item.get("entity_type") == draft.answer_type
-            and item.get("frequency", 0) >= 3
-            and item.get("entity") not in {draft.answer, subject, obj}
-        ]
+        blocked = {draft.answer.strip().lower(), subject.strip().lower(), obj.strip().lower()}
+        pool = []
+        seen = set()
+
+        for item in entity_bank:
+            entity = str(item.get("entity") or "").strip()
+            entity_type = str(item.get("entity_type") or "")
+            freq = int(item.get("frequency", 0) or 0)
+            if not entity or entity.lower() in blocked:
+                continue
+            if entity_type != draft.answer_type:
+                continue
+            if freq < 3:
+                continue
+            if entity.lower() in seen:
+                continue
+            seen.add(entity.lower())
+            pool.append(entity)
 
         if len(pool) < 3:
             return None

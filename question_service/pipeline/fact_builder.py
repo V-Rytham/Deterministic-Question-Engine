@@ -29,6 +29,8 @@ class Fact:
 
 
 class FactBuilder:
+    """Build candidate facts by linking parsed SVO cores to entity mentions."""
+
     def build(
         self,
         book_id: str,
@@ -38,19 +40,34 @@ class FactBuilder:
         parsed_cores: list[ParsedFactCore],
         entities: list[EntityRecord],
     ) -> list[Fact]:
+        if not entities or not parsed_cores:
+            return []
+
+        sentence_l = sentence.lower()
+        entity_pairs = {(e.entity.strip(), e.entity_type) for e in entities if e.entity.strip()}
         facts: list[Fact] = []
-        if not entities:
-            return facts
+        seen: set[tuple[str, str, str, str, int]] = set()
 
         for core in parsed_cores:
-            for ent in entities:
+            for entity, entity_type in entity_pairs:
+                entity_l = entity.lower()
+                # Keep only meaningful alignments.
+                if entity_l not in sentence_l:
+                    continue
+                if entity_l not in core.subject.lower() and entity_l not in core.object.lower():
+                    continue
+
+                key = (core.subject.lower(), core.lemma.lower(), core.object.lower(), entity_l, position)
+                if key in seen:
+                    continue
+                seen.add(key)
                 facts.append(
                     Fact(
                         fact_id=str(uuid.uuid4()),
                         book_id=book_id,
                         chapter=chapter,
-                        entity=ent.entity,
-                        entity_type=ent.entity_type,
+                        entity=entity,
+                        entity_type=entity_type,
                         lemma=core.lemma,
                         subject=core.subject,
                         verb=core.verb,
@@ -59,4 +76,5 @@ class FactBuilder:
                         position=position,
                     )
                 )
+
         return facts
