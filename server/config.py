@@ -3,6 +3,14 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+try:
+    # Optional local development convenience; `.env` is gitignored.
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:
+    pass
+
 
 def _get_env(name: str) -> str | None:
     v = os.getenv(name)
@@ -60,4 +68,3 @@ def get_settings() -> Settings:
         cors_origins=cors_origins,
         log_level=_get_env("LOG_LEVEL") or "INFO",
     )
-
