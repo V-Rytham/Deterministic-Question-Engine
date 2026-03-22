@@ -19,6 +19,13 @@ export MONGO_URI="mongodb+srv://..."
 uvicorn main:app --host 0.0.0.0 --port 10000
 ```
 
+## Render build note (spaCy)
+
+Render must use Python 3.11.x (recommended) or 3.12.x. If Render builds with Python 3.13/3.14, spaCy dependencies (e.g. `blis`, `thinc`) may try to compile and fail.
+
+If you are not using the Blueprint (`render.yaml`), set Render env var:
+- `PYTHON_VERSION=3.11.8`
+
 ## Endpoints
 
 - `GET /health`
@@ -31,4 +38,3 @@ Uses database: `qna_engine`
 
 Collections (auto-created on write):
 `books`, `chapters`, `paragraphs`, `sentences`, `facts`, `mcqs`
-
