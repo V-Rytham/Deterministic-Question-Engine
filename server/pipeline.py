@@ -42,6 +42,16 @@ def _acquire_pipeline_lock(book_id: int, ttl_seconds: int) -> dict | None:
     stale_before = now - timedelta(seconds=int(ttl_seconds))
 
     # Lock is represented by books.status == "processing". If the lock is stale, it can be taken over.
+    #
+    # Important: do NOT use `upsert=True` with a filter that can intentionally fail (when another worker holds
+    # the lock). Otherwise MongoDB will attempt to insert a new document with the same `_id` and raise
+    # DuplicateKeyError instead of returning `None`.
+    books_col.update_one(
+        {"_id": book_id},
+        {"$setOnInsert": {"title": "Unknown Title", "created_at": now}, "$set": {"updated_at": now}},
+        upsert=True,
+    )
+
     return books_col.find_one_and_update(
         {
             "_id": book_id,
@@ -57,10 +67,8 @@ def _acquire_pipeline_lock(book_id: int, ttl_seconds: int) -> dict | None:
                 "processing_started_at": now,
                 "last_error": None,
                 "updated_at": now,
-            },
-            "$setOnInsert": {"title": "Unknown Title", "created_at": now},
+            }
         },
-        upsert=True,
         return_document=ReturnDocument.AFTER,
     )
 
