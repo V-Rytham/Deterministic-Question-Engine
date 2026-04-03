@@ -41,7 +41,8 @@ def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
 
 @router.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    settings = get_settings()
+    return {"status": "ok" if settings.mongo_uri else "degraded"}
 
 
 @router.get("/mcqs/{book_id}", response_model=GenerateResponse)
@@ -59,6 +60,8 @@ def get_mcqs(
     except PyMongoError as e:
         logger.exception("Mongo error in GET /mcqs/%s", book_id)
         raise HTTPException(status_code=500, detail="Database error.") from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.post("/generate", response_model=GenerateResponse)
@@ -122,6 +125,8 @@ def generate(body: GenerateBody) -> GenerateResponse:
     except PyMongoError as e:
         logger.exception("Mongo error in POST /generate")
         raise HTTPException(status_code=500, detail="Database error.") from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unhandled error in POST /generate")
         raise HTTPException(status_code=500, detail=f"Server error: {e!s}") from e
@@ -148,3 +153,5 @@ def status(book_id: int = Path(..., gt=0)) -> dict[str, Any]:
     except PyMongoError as e:
         logger.exception("Mongo error in GET /status/%s", book_id)
         raise HTTPException(status_code=500, detail="Database error.") from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
