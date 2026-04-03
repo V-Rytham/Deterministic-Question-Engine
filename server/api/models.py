@@ -5,6 +5,12 @@ from pydantic import BaseModel, Field
 
 class GenerateBody(BaseModel):
     book_id: int = Field(..., gt=0, description="Project Gutenberg book id")
+    workers: int | None = Field(
+        None,
+        ge=1,
+        le=16,
+        description="Optional chapter worker override for this run; defaults to PIPELINE_WORKERS.",
+    )
 
 
 class McqOut(BaseModel):
@@ -17,4 +23,3 @@ class McqOut(BaseModel):
 
 class GenerateResponse(BaseModel):
     mcqs: list[McqOut]
-

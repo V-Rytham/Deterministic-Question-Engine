@@ -40,6 +40,7 @@ def process_sentence(sent_doc):
     text = sent_doc.get("resolved_text") or sent_doc["text"]
     doc = get_nlp()(text)
 
+def _extract_sentence_features(doc, text: str) -> dict:
     entities = [{"text": e.text, "label": e.label_} for e in doc.ents]
 
     root = _find_root(doc)
@@ -74,6 +75,14 @@ def process_sentence(sent_doc):
         "modifiers": modifiers,
         "nlp_text": text,
     }
+
+
+def process_sentence_batch(sentence_docs, *, batch_size: int = 32):
+    nlp = get_nlp()
+    texts = ((s.get("resolved_text") or s["text"]) for s in sentence_docs)
+    for sent_doc, doc in zip(sentence_docs, nlp.pipe(texts, batch_size=batch_size), strict=False):
+        text = sent_doc.get("resolved_text") or sent_doc["text"]
+        yield sent_doc, _extract_sentence_features(doc, text)
 
 
 def run_nlp_pipeline(book_id):

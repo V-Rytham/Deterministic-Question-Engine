@@ -4,6 +4,7 @@ import os
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime, timedelta, timezone
+from time import perf_counter
 
 from pymongo import InsertOne, ReturnDocument, UpdateOne
 from pymongo.errors import PyMongoError

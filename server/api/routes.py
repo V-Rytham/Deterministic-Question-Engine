@@ -68,6 +68,7 @@ def get_mcqs(
 def generate(body: GenerateBody) -> GenerateResponse:
     settings = get_settings()
     book_id = body.book_id
+    workers = body.workers
     lim = settings.mcq_return_limit
 
     try:
@@ -92,6 +93,7 @@ def generate(body: GenerateBody) -> GenerateResponse:
                             mcq_target=settings.mcq_target,
                             min_existing=lim,
                             lock_ttl_seconds=settings.pipeline_lock_ttl_seconds,
+                            workers=workers,
                         )
                     except Exception:
                         logger.exception("Background pipeline failed for book_id=%s", book_id)
