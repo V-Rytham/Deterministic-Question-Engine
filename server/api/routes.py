@@ -6,14 +6,18 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-import requests
 from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 
 from server.api.models import BookSearchResult, GenerateBody, GenerateResponse, McqOut
 from server.config import get_settings
-from server.db.mongo import mcqs_col
+from server.db.mongo import books_index_col, mcqs_col
+from server.ingestion.books_index import (
+    ensure_books_index_indexes,
+    fetch_and_cache_external,
+    search_books_index,
+)
 from server.pipeline import run_pipeline
 from server.utils.errors import (
     BadInputError,
@@ -44,14 +48,12 @@ def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
     )
 
 
-def _author_name(raw_authors: list[dict[str, Any]]) -> str:
-    if not raw_authors:
-        return "Unknown Author"
-
-    primary = raw_authors[0].get("name")
-    if not primary:
-        return "Unknown Author"
-    return str(primary)
+def _to_search_result(doc: dict[str, Any]) -> BookSearchResult:
+    return BookSearchResult(
+        id=int(doc.get("book_id")),
+        title=str(doc.get("title") or "Untitled"),
+        author=str(doc.get("author") or "Unknown Author"),
+    )
 
 
 @router.get("/books/search", response_model=list[BookSearchResult])
@@ -68,27 +70,23 @@ def search_books(
         return cached[1]
 
     try:
-        res = requests.get(
-            "https://gutendex.com/books/",
-            params={"search": query},
-            timeout=8,
-        )
-        res.raise_for_status()
-        payload = res.json()
-        out = [
-            BookSearchResult(
-                id=int(book.get("id")),
-                title=str(book.get("title") or "Untitled"),
-                author=_author_name(book.get("authors") or []),
-            )
-            for book in (payload.get("results") or [])[:limit]
-            if book.get("id")
-        ]
+        ensure_books_index_indexes(books_index_col)
+
+        local_results = search_books_index(books_index_col, query=query, limit=limit)
+        if local_results:
+            out = [_to_search_result(doc) for doc in local_results]
+            _book_search_cache[cache_key] = (now, out)
+            return out
+
+        external_results = fetch_and_cache_external(books_index_col, query=query, limit=limit)
+        out = [_to_search_result(doc) for doc in external_results]
         _book_search_cache[cache_key] = (now, out)
         return out
-    except requests.RequestException as e:
-        logger.exception("Book search failed for query=%s", query)
-        raise HTTPException(status_code=502, detail="Unable to fetch book suggestions.") from e
+    except PyMongoError as e:
+        logger.exception("Mongo error during local book search query=%s", query)
+        raise HTTPException(status_code=500, detail="Database error.") from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/health")
