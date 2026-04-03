@@ -5,8 +5,6 @@ Phrase-level SVO + modifiers from spaCy dependency parse (deterministic for fixe
 from server.db.mongo import sentences_col
 from server.processing.spacy_model import get_nlp
 
-nlp = get_nlp()
-
 
 def _subtree_text(token):
     toks = sorted(token.subtree, key=lambda t: t.i)
@@ -40,8 +38,11 @@ def _collect_prep_phrases(head):
 
 def process_sentence(sent_doc):
     text = sent_doc.get("resolved_text") or sent_doc["text"]
-    doc = nlp(text)
+    doc = get_nlp()(text)
+    return _extract_sentence_features(doc, text)
 
+
+def _extract_sentence_features(doc, text: str) -> dict:
     entities = [{"text": e.text, "label": e.label_} for e in doc.ents]
 
     root = _find_root(doc)
@@ -76,6 +77,14 @@ def process_sentence(sent_doc):
         "modifiers": modifiers,
         "nlp_text": text,
     }
+
+
+def process_sentence_batch(sentence_docs, *, batch_size: int = 32):
+    nlp = get_nlp()
+    texts = ((s.get("resolved_text") or s["text"]) for s in sentence_docs)
+    for sent_doc, doc in zip(sentence_docs, nlp.pipe(texts, batch_size=batch_size), strict=False):
+        text = sent_doc.get("resolved_text") or sent_doc["text"]
+        yield sent_doc, _extract_sentence_features(doc, text)
 
 
 def run_nlp_pipeline(book_id):

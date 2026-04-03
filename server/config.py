@@ -46,6 +46,8 @@ class Settings:
     mcq_return_limit: int = 10
     mcq_target: int = 100
     pipeline_lock_ttl_seconds: int = 60 * 60  # 1 hour
+    pipeline_workers: int = 4
+    spacy_batch_size: int = 32
     cors_origins: list[str] | None = None
     log_level: str = "INFO"
 
@@ -60,6 +62,8 @@ def get_settings() -> Settings:
         mcq_return_limit=_parse_int("MCQ_RETURN_LIMIT", 10),
         mcq_target=_parse_int("MCQ_TARGET", 100),
         pipeline_lock_ttl_seconds=_parse_int("PIPELINE_LOCK_TTL_SECONDS", 60 * 60),
+        pipeline_workers=_parse_int("PIPELINE_WORKERS", 4),
+        spacy_batch_size=_parse_int("SPACY_BATCH_SIZE", 32),
         cors_origins=cors_origins,
         log_level=_get_env("LOG_LEVEL") or "INFO",
     )
