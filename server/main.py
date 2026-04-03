@@ -38,7 +38,10 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def _startup() -> None:
         init_db()
-        logger.info("MongoDB connected; service ready.")
+        if settings.mongo_uri:
+            logger.info("MongoDB connected; service ready.")
+        else:
+            logger.warning("Service started without MongoDB. Set MONGO_URI to enable persistence.")
 
     app.include_router(api_router)
     return app

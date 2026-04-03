@@ -26,6 +26,10 @@ Render must use Python 3.11.x (recommended) or 3.12.x. If Render builds with Pyt
 If you are not using the Blueprint (`render.yaml`), set Render env var:
 - `PYTHON_VERSION=3.11.8`
 
+## Render runtime note
+
+If `MONGO_URI` is not set, the API now boots in a degraded mode (`GET /health` returns `{"status":"degraded"}`), but database-backed endpoints (`/generate`, `/mcqs/{book_id}`, `/status/{book_id}`) return `503` until MongoDB is configured.
+
 ## Endpoints
 
 - `GET /health`

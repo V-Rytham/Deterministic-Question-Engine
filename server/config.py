@@ -41,7 +41,7 @@ def _parse_csv(name: str) -> list[str] | None:
 
 @dataclass(frozen=True)
 class Settings:
-    mongo_uri: str
+    mongo_uri: str | None = None
     mongo_db_name: str = "qna_engine"
     mcq_return_limit: int = 10
     mcq_target: int = 100
@@ -52,11 +52,6 @@ class Settings:
 
 def get_settings() -> Settings:
     mongo_uri = _get_env("MONGO_URI")
-    if not mongo_uri:
-        raise RuntimeError(
-            "MONGO_URI environment variable is required (MongoDB Atlas connection string)."
-        )
-
     cors_origins = _parse_csv("CORS_ORIGINS")
 
     return Settings(
