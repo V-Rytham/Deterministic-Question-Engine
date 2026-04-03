@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { generateMcqs } from "./api.js";
 import McqList from "./components/McqList.jsx";
+import ProductShowcase from "./components/ProductShowcase.jsx";
 
 export default function App() {
   const [bookId, setBookId] = useState("");
   const [mcqs, setMcqs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const generatorRef = useRef(null);
 
   async function onGenerate() {
     setError("");
@@ -28,11 +30,20 @@ export default function App() {
     }
   }
 
+  function scrollToGenerator() {
+    generatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div className="app">
-      <h1>Deterministic MCQ Generator</h1>
+      <ProductShowcase onTryClick={scrollToGenerator} />
 
-      <div className="panel">
+      <div className="panel" id="generator-panel" ref={generatorRef}>
+        <div className="panel-title-row">
+          <h2>Generate MCQs</h2>
+          <p>Enter a Gutenberg Book ID to run the deterministic pipeline.</p>
+        </div>
+
         <div className="row">
           <input
             type="text"
