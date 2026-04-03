@@ -6,8 +6,6 @@ No neural coref model: same paragraph + same spaCy model → same output.
 from server.db.mongo import chapters_col, paragraphs_col, sentences_col
 from server.processing.spacy_model import get_nlp
 
-nlp = get_nlp()
-
 PRONOUNS = {
     "he",
     "him",
@@ -57,7 +55,7 @@ def _find_antecedent(ents, char_idx: int, pronoun: str):
 
 def resolve_paragraph_text(para_text: str):
     """Returns list of resolved sentence strings in spaCy sentence order."""
-    doc = nlp(para_text)
+    doc = get_nlp()(para_text)
     ents = [(e.start_char, e.end_char, e.text, e.label_) for e in doc.ents]
 
     replace_by_tok = {}
