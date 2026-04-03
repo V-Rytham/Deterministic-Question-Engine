@@ -10,11 +10,13 @@ from pymongo import TEXT, InsertOne
 from pymongo.collection import Collection
 from pymongo.errors import BulkWriteError
 from requests import RequestException
+from requests import ReadTimeout
 
 logger = logging.getLogger(__name__)
 
 _GUTENDEX_URL = "https://gutendex.com/books/"
 _PUNCTUATION_TRANSLATION = str.maketrans({c: " " for c in string.punctuation})
+_EXTERNAL_SEARCH_MIN_QUERY_LENGTH = 5
 
 
 def ensure_books_index_indexes(collection: Collection) -> None:
@@ -143,8 +145,18 @@ def fetch_and_cache_external(
     query: str,
     limit: int = 8,
 ) -> list[dict[str, Any]]:
+    if len(normalize_search_text(query)) < _EXTERNAL_SEARCH_MIN_QUERY_LENGTH:
+        return []
+
     try:
         external = fetch_from_gutendex(query)
+    except ReadTimeout:
+        logger.warning(
+            "Fallback Gutendex search timed out for query=%s (timeout=%ss)",
+            query,
+            8,
+        )
+        return []
     except RequestException:
         logger.exception("Fallback Gutendex search failed for query=%s", query)
         return []
