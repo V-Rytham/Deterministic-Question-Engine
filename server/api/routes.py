@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+import requests
 from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
-from concurrent.futures import ThreadPoolExecutor
 
-from server.api.models import GenerateBody, GenerateResponse, McqOut
+from server.api.models import BookSearchResult, GenerateBody, GenerateResponse, McqOut
 from server.config import get_settings
 from server.db.mongo import mcqs_col
 from server.pipeline import run_pipeline
@@ -28,6 +30,9 @@ _executor = ThreadPoolExecutor(max_workers=1)
 _inflight_lock = threading.Lock()
 _inflight: set[int] = set()
 
+_BOOK_SEARCH_CACHE_TTL_SECONDS = 600
+_book_search_cache: dict[str, tuple[float, list[BookSearchResult]]] = {}
+
 
 def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
     return McqOut(
@@ -37,6 +42,53 @@ def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
         difficulty=doc.get("difficulty"),
         quality=float(doc.get("quality")) if doc.get("quality") is not None else None,
     )
+
+
+def _author_name(raw_authors: list[dict[str, Any]]) -> str:
+    if not raw_authors:
+        return "Unknown Author"
+
+    primary = raw_authors[0].get("name")
+    if not primary:
+        return "Unknown Author"
+    return str(primary)
+
+
+@router.get("/books/search", response_model=list[BookSearchResult])
+def search_books(
+    q: str = Query(..., min_length=2, max_length=120),
+    limit: int = Query(8, ge=1, le=10),
+) -> list[BookSearchResult]:
+    query = q.strip()
+    cache_key = f"{query.lower()}:{limit}"
+    now = time.time()
+    cached = _book_search_cache.get(cache_key)
+
+    if cached and now - cached[0] < _BOOK_SEARCH_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    try:
+        res = requests.get(
+            "https://gutendex.com/books/",
+            params={"search": query},
+            timeout=8,
+        )
+        res.raise_for_status()
+        payload = res.json()
+        out = [
+            BookSearchResult(
+                id=int(book.get("id")),
+                title=str(book.get("title") or "Untitled"),
+                author=_author_name(book.get("authors") or []),
+            )
+            for book in (payload.get("results") or [])[:limit]
+            if book.get("id")
+        ]
+        _book_search_cache[cache_key] = (now, out)
+        return out
+    except requests.RequestException as e:
+        logger.exception("Book search failed for query=%s", query)
+        raise HTTPException(status_code=502, detail="Unable to fetch book suggestions.") from e
 
 
 @router.get("/health")
