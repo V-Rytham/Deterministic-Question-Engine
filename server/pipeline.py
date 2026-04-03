@@ -18,7 +18,7 @@ from server.generation.distractors import _bucket_for_role, build_pools, pick_di
 from server.generation.question_generation import difficulty_for, generate_question_variants
 from server.ingestion.fetch_book import fetch_book_text, split_into_chapters, store_book
 from server.processing.coreference import resolve_paragraph_text
-from server.processing.nlp_pipeline import process_sentence_batch
+from server.processing.nlp_pipeline import process_sentence
 from server.processing.segmenter import segment_chapter
 from server.processing.spacy_model import get_nlp
 from server.utils.deduplication import dedupe_questions
@@ -128,35 +128,20 @@ def process_chapter(chapter_doc: dict, mcq_target: int = 100) -> dict[str, int]:
             if updates:
                 sentences_col.bulk_write(updates, ordered=True)
 
-        settings = get_settings()
-        nlp_batch_size = max(1, int(settings.spacy_batch_size))
-        chapter_sentences = list(
-            sentences_col.find({"chapter_id": chapter_id}).sort(
-                [("chapter_number", 1), ("para_id", 1), ("order", 1)]
-            )
+        sent_cursor = sentences_col.find({"chapter_id": chapter_id}).sort(
+            [("chapter_number", 1), ("para_id", 1), ("order", 1)]
         )
         nlp_updates = []
-        parsed_by_id = {}
-        nlp_started_at = perf_counter()
-        for sent_doc, parsed in process_sentence_batch(chapter_sentences, batch_size=nlp_batch_size):
-            parsed_by_id[sent_doc["_id"]] = parsed
-            nlp_updates.append(UpdateOne({"_id": sent_doc["_id"]}, {"$set": parsed}))
+        for sent in sent_cursor:
+            nlp_updates.append(UpdateOne({"_id": sent["_id"]}, {"$set": process_sentence(sent)}))
         if nlp_updates:
             sentences_col.bulk_write(nlp_updates, ordered=True)
-        logger.info(
-            "chapter_nlp_done book_id=%s chapter_id=%s sentences=%s batch_size=%s elapsed_sec=%.3f",
-            book_id,
-            chapter_id,
-            len(chapter_sentences),
-            nlp_batch_size,
-            perf_counter() - nlp_started_at,
-        )
 
+        sent_cursor = sentences_col.find({"chapter_id": chapter_id}).sort(
+            [("chapter_number", 1), ("para_id", 1), ("order", 1)]
+        )
         fact_inserts = []
-        for sent in chapter_sentences:
-            parsed = parsed_by_id.get(sent["_id"])
-            if parsed:
-                sent.update(parsed)
+        for sent in sent_cursor:
             for fact in extract_facts(sent):
                 fact_inserts.append(InsertOne(fact))
         if fact_inserts:

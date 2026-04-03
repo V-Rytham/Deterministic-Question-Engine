@@ -39,8 +39,6 @@ def _collect_prep_phrases(head):
 def process_sentence(sent_doc):
     text = sent_doc.get("resolved_text") or sent_doc["text"]
     doc = get_nlp()(text)
-    return _extract_sentence_features(doc, text)
-
 
 def _extract_sentence_features(doc, text: str) -> dict:
     entities = [{"text": e.text, "label": e.label_} for e in doc.ents]
