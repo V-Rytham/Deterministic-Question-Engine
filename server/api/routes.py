@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import threading
-import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -10,14 +9,9 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
 from pymongo.errors import PyMongoError
 
-from server.api.models import BookSearchResult, GenerateBody, GenerateResponse, McqOut
+from server.api.models import GenerateBody, GenerateResponse, McqOut
 from server.config import get_settings
-from server.db.mongo import books_index_col, mcqs_col
-from server.ingestion.books_index import (
-    ensure_books_index_indexes,
-    fetch_and_cache_external,
-    search_books_index,
-)
+from server.db.mongo import mcqs_col
 from server.pipeline import run_pipeline
 from server.utils.errors import (
     BadInputError,
@@ -34,9 +28,6 @@ _executor = ThreadPoolExecutor(max_workers=1)
 _inflight_lock = threading.Lock()
 _inflight: set[int] = set()
 
-_BOOK_SEARCH_CACHE_TTL_SECONDS = 600
-_book_search_cache: dict[str, tuple[float, list[BookSearchResult]]] = {}
-
 
 def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
     return McqOut(
@@ -46,47 +37,6 @@ def _serialize_mcq(doc: dict[str, Any]) -> McqOut:
         difficulty=doc.get("difficulty"),
         quality=float(doc.get("quality")) if doc.get("quality") is not None else None,
     )
-
-
-def _to_search_result(doc: dict[str, Any]) -> BookSearchResult:
-    return BookSearchResult(
-        id=int(doc.get("book_id")),
-        title=str(doc.get("title") or "Untitled"),
-        author=str(doc.get("author") or "Unknown Author"),
-    )
-
-
-@router.get("/books/search", response_model=list[BookSearchResult])
-def search_books(
-    q: str = Query(..., min_length=2, max_length=120),
-    limit: int = Query(8, ge=1, le=10),
-) -> list[BookSearchResult]:
-    query = q.strip()
-    cache_key = f"{query.lower()}:{limit}"
-    now = time.time()
-    cached = _book_search_cache.get(cache_key)
-
-    if cached and now - cached[0] < _BOOK_SEARCH_CACHE_TTL_SECONDS:
-        return cached[1]
-
-    try:
-        ensure_books_index_indexes(books_index_col)
-
-        local_results = search_books_index(books_index_col, query=query, limit=limit)
-        if local_results:
-            out = [_to_search_result(doc) for doc in local_results]
-            _book_search_cache[cache_key] = (now, out)
-            return out
-
-        external_results = fetch_and_cache_external(books_index_col, query=query, limit=limit)
-        out = [_to_search_result(doc) for doc in external_results]
-        _book_search_cache[cache_key] = (now, out)
-        return out
-    except PyMongoError as e:
-        logger.exception("Mongo error during local book search query=%s", query)
-        raise HTTPException(status_code=500, detail="Database error.") from e
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e)) from e
 
 
 @router.get("/health")
