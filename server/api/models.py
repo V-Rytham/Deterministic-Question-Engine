@@ -23,9 +23,3 @@ class McqOut(BaseModel):
 
 class GenerateResponse(BaseModel):
     mcqs: list[McqOut]
-
-
-class BookSearchResult(BaseModel):
-    id: int
-    title: str
-    author: str

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from pymongo import ASCENDING, DESCENDING, MongoClient, TEXT
+from pymongo import ASCENDING, DESCENDING, MongoClient
 
 from server.config import get_settings
 
@@ -28,7 +28,6 @@ if _settings.mongo_uri:
 
 if db is not None:
     books_col = db["books"]
-    books_index_col = db["books_index"]
     chapters_col = db["chapters"]
     paragraphs_col = db["paragraphs"]
     sentences_col = db["sentences"]
@@ -36,7 +35,6 @@ if db is not None:
     mcqs_col = db["mcqs"]
 else:
     books_col = _UnavailableCollection()
-    books_index_col = _UnavailableCollection()
     chapters_col = _UnavailableCollection()
     paragraphs_col = _UnavailableCollection()
     sentences_col = _UnavailableCollection()
@@ -62,6 +60,3 @@ def init_db() -> None:
     )
     facts_col.create_index([("book_id", ASCENDING), ("score", DESCENDING)])
     mcqs_col.create_index([("book_id", ASCENDING), ("quality", DESCENDING)])
-
-    books_index_col.create_index("book_id", unique=True)
-    books_index_col.create_index([("search_text", TEXT)])

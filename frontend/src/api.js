@@ -17,27 +17,6 @@ async function fetchJson(url, init) {
   return { res, data };
 }
 
-export async function searchBooks(query, signal) {
-  const term = String(query || "").trim();
-  if (term.length < 2) return [];
-
-  const url = `${base}/books/search?q=${encodeURIComponent(term)}&limit=8`;
-  const { res, data } = await fetchJson(url, { signal });
-
-  if (!res.ok) {
-    const detail = data.detail;
-    const msg =
-      typeof detail === "string"
-        ? detail
-        : Array.isArray(detail)
-          ? detail.map((d) => d.msg || d).join("; ")
-          : JSON.stringify(detail || data);
-    throw new Error(msg || `Request failed (${res.status})`);
-  }
-
-  return Array.isArray(data) ? data : [];
-}
-
 export async function getMcqs(bookId, limit = 10) {
   const { res, data } = await fetchJson(`${base}/mcqs/${bookId}?limit=${limit}`);
   if (!res.ok) {
